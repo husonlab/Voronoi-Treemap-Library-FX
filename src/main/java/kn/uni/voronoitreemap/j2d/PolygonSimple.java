@@ -721,8 +721,6 @@ public class PolygonSimple implements Cloneable {
 
 	/**
 	 * Array with x-values of the polygon points.
-	 *
-	 * @return
 	 */
 	public double[] getXPoints() {
 		return x;
@@ -730,8 +728,6 @@ public class PolygonSimple implements Cloneable {
 
 	/**
 	 * Array with y-values of the polygon points.
-	 *
-	 * @return
 	 */
 	public double[] getYPoints() {
 		return y;
@@ -739,8 +735,6 @@ public class PolygonSimple implements Cloneable {
 
 	/**
 	 * If the polygon is modified by e.g. shrinking, this method returns the original polygon. If the polyogn was not modified, it can return null.
-	 *
-	 * @return
 	 */
 	public PolygonSimple getOriginalPolygon() {
 		return oldPolygon;
@@ -752,5 +746,23 @@ public class PolygonSimple implements Cloneable {
 
 	public void setLevel(int level) {
 		this.level = level;
+	}
+
+
+	/**
+	 * gets a random inner point
+	 *
+	 * @param random random source
+	 * @return random point in polygon
+	 */
+	public Point2D getRandomInnerPoint(Random random) {
+		var bounds = getBounds();
+		var x = -1.0;
+		var y = -1.0;
+		do {
+			x = bounds.getMinX() + random.nextDouble() * bounds.getWidth();
+			y = bounds.getMinY() + random.nextDouble() * bounds.getHeight();
+		} while (!contains(x, y));
+		return new Point2D(x, y);
 	}
 }

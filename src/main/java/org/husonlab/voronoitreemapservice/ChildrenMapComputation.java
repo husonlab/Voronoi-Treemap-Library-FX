@@ -21,7 +21,6 @@ package org.husonlab.voronoitreemapservice;
 
 import kn.uni.voronoitreemap.core.VoronoiCore;
 import kn.uni.voronoitreemap.datastructure.OpenList;
-import kn.uni.voronoitreemap.j2d.Point2D;
 import kn.uni.voronoitreemap.j2d.PolygonSimple;
 import kn.uni.voronoitreemap.j2d.Site;
 
@@ -72,7 +71,7 @@ public class ChildrenMapComputation {
 		var totalArea = childrenFunction.apply(node).stream().mapToDouble(areaFunction::apply).sum();
 
 		for (var child : childrenFunction.apply(node)) {
-			var point = polygon.getRelativePosition(getRandomInnerPoint(polygon));
+			var point = polygon.getRelativePosition(polygon.getRandomInnerPoint(random));
 			var site = new Site(point.getX(), point.getY());
 			site.setPercentage(areaFunction.apply(child) / totalArea);
 			site.setData(child);
@@ -88,19 +87,5 @@ public class ChildrenMapComputation {
 			}
 		}
 		return sites;
-	}
-
-	/**
-	 * Returns a random point in the polygon.
-	 */
-	private Point2D getRandomInnerPoint(PolygonSimple polygonSimple) {
-		var bounds = polygonSimple.getBounds();
-		var x = -1.0;
-		var y = -1.0;
-		do {
-			x = bounds.getMinX() + random.nextDouble() * bounds.getWidth();
-			y = bounds.getMinY() + random.nextDouble() * bounds.getHeight();
-		} while (!polygonSimple.contains(x, y));
-		return new Point2D(x, y);
 	}
 }
