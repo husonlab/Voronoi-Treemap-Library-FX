@@ -20,14 +20,10 @@
 package org.husonlab.voronoitreemapservice.example;
 
 import javafx.application.Application;
-import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Group;
 import javafx.scene.Scene;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.ProgressIndicator;
-import javafx.scene.control.ToggleButton;
+import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
@@ -46,6 +42,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 
 public class Example extends Application {
+	private double zoom = 1.0;
 
 	@Override
 	public void start(Stage stage) {
@@ -54,25 +51,28 @@ public class Example extends Application {
 		circle.setStroke(Color.LIGHTGRAY);
 		circle.setStrokeWidth(4);
 
-		var centerPane = new StackPane();
 		var vbox = new VBox();
 		vbox.setStyle("-fx-spacing: 10;");
 		var borderPane = new BorderPane();
 		borderPane.setStyle("-fx-padding: 10 10 10 10;");
-		borderPane.setCenter(centerPane);
 		borderPane.setRight(vbox);
 
 		var cancel = new ToggleButton("Cancel");
 		//cancel.setSelected(true);
-		borderPane.setBottom(cancel);
 		var scene = new Scene(borderPane, 900, 900);
+
 		stage.setScene(scene);
 		stage.setTitle("Voronoi Tree Map FX Example");
 		stage.show();
 
-		var group = new Group();
-		var outerGroup = new Group(group);
-		centerPane.getChildren().add(outerGroup);
+		borderPane.prefHeightProperty().bind(scene.heightProperty());
+
+		var outerGroup = new Group();
+		var scrollPane = new ScrollPane(new StackPane(new Group(outerGroup)));
+		scrollPane.setFitToWidth(true);
+		scrollPane.setFitToHeight(true);
+		scrollPane.setPannable(true);
+		borderPane.setCenter(scrollPane);
 
 		var rootNode = setupTree();
 		var rootPolygon = PolygonUtilities.simpleNGon(350, 48);
@@ -80,28 +80,42 @@ public class Example extends Application {
 		var backgroundPolygon = PolygonUtilities.polygon(rootPolygon);
 		backgroundPolygon.setFill(Color.TRANSPARENT);
 		backgroundPolygon.setStroke(Color.LIGHTGRAY);
+		outerGroup.getChildren().add(backgroundPolygon);
 
-		group.getChildren().add(new Group(backgroundPolygon));
+		var levelsGroup = new Group();
+		var labelsGroup = new Group();
+		outerGroup.getChildren().addAll(levelsGroup, labelsGroup);
 
-		var voronoiTreeMapService = new VoronoiTreeMapService<TreeNode>(new Settings(16, 666, 0.96));
+		var voronoiTreeMapService = new VoronoiTreeMapService<TreeNode>(new Settings(16, 666, 0.98));
 
 		BiConsumer<TreeNode, PolygonSimple> resultConsumer = (v, p) -> {
 			var level = p.getLevel();
-			while (level >= group.getChildren().size())
-				group.getChildren().add(new Group());
+			while (level >= levelsGroup.getChildren().size()) {
+				levelsGroup.getChildren().add(new Group());
+				labelsGroup.getChildren().add(new Group());
+			}
 			var polygon = PolygonUtilities.polygon(p);
-			polygon.setFill(Color.BLUE.deriveColor(1, 1, 1, 0.1));
+			if (v.isBelow("Archaea"))
+				polygon.setFill(Color.web("#DF5C24").deriveColor(1, 1, 1, 0.1));
+			else if (v.isBelow("Bacteria"))
+				polygon.setFill(Color.web("#265DAB").deriveColor(1, 1, 1, 0.1));
+			else
+				polygon.setFill(Color.web("#059748").deriveColor(1, 1, 1, 0.1));
 			polygon.setStroke(Color.DARKGRAY);
+
 			var label = new Label(v.getName());
 			label.setFont(layerToFont(level));
 			var center = PolygonUtilities.computeCenter(polygon);
 			label.setAlignment(Pos.CENTER);
 			label.translateXProperty().bind(polygon.translateXProperty());
 			label.translateYProperty().bind(polygon.translateYProperty());
-			((Group) group.getChildren().get(level)).getChildren().addAll(polygon, label);
-			Platform.runLater(() -> {
-				label.setLayoutX(center.getX() - 0.5 * label.getWidth());
-				label.setLayoutY(center.getY() - 0.5 * label.getHeight());
+			((Group) levelsGroup.getChildren().get(level)).getChildren().add(polygon);
+			((Group) labelsGroup.getChildren().get(level)).getChildren().add(label);
+			label.widthProperty().addListener((a, o, n) -> {
+				if (o.doubleValue() == 0 && n.doubleValue() > 0) {
+					label.setLayoutX(center.getX() - 0.5 * label.getWidth());
+					label.setLayoutY(center.getY() - 0.5 * label.getHeight());
+				}
 			});
 		};
 
@@ -111,20 +125,48 @@ public class Example extends Application {
 			if (n)
 				voronoiTreeMapService.cancel();
 		});
-
-		cancel.disableProperty().bind(cancel.selectedProperty().or(voronoiTreeMapService.runningProperty().not()));
+		cancel.disableProperty().bind(cancel.selectedProperty());
+		cancel.visibleProperty().bind(voronoiTreeMapService.runningProperty());
 
 		voronoiTreeMapService.runningProperty().addListener((v, o, n) -> {
 			cancel.setGraphic(n ? new ProgressIndicator() : null);
 		});
 		voronoiTreeMapService.setOnSucceeded(e -> {
-			for (var i = 0; i < group.getChildren().size(); i++) {
-				var showCheckBox = new CheckBox("Show " + i);
-				showCheckBox.selectedProperty().bindBidirectional(group.getChildren().get(i).visibleProperty());
-				vbox.getChildren().add(showCheckBox);
+			for (var i = 0; i < levelsGroup.getChildren().size(); i++) {
+				var showLevel = new CheckBox("Show level " + i);
+				showLevel.selectedProperty().bindBidirectional(levelsGroup.getChildren().get(i).visibleProperty());
+				vbox.getChildren().add(showLevel);
+				var showLabels = new CheckBox("Show labels " + i);
+				showLabels.selectedProperty().bindBidirectional(labelsGroup.getChildren().get(i).visibleProperty());
+				vbox.getChildren().add(showLabels);
 			}
 		});
 		voronoiTreeMapService.start();
+
+		outerGroup.setOnScroll(e -> {
+			if (!voronoiTreeMapService.isRunning()) {
+				if (e.getDeltaY() > 0 && zoom < 20) {
+					zoom *= 1.1;
+				} else if (e.getDeltaY() < 0 && zoom > 0.5) {
+					zoom /= 1.1;
+				} else
+					return;
+				outerGroup.setScaleX(zoom);
+				outerGroup.setScaleY(zoom);
+				for (var one : labelsGroup.getChildren()) {
+					if (one instanceof Group group) {
+						for (var node : group.getChildren()) {
+							if (node instanceof Label label) {
+								label.setScaleX(1 / zoom);
+								label.setScaleY(1 / zoom);
+							}
+						}
+					}
+				}
+			}
+		});
+
+
 	}
 
 	private TreeNode setupTree() {
@@ -285,7 +327,6 @@ public class Example extends Application {
 		TreeNode.createLink(nameNodeMap, "WOR-3", "Bacteria");
 		TreeNode.createLink(nameNodeMap, "Wallbacteria", "Bacteria");
 		TreeNode.createLink(nameNodeMap, "Zixibacteria", "Bacteria");
-
 		return nameNodeMap.get("GTDB");
 	}
 

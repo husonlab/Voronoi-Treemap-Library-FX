@@ -43,8 +43,8 @@ public class ChildrenMapComputation {
 	 * @param settings settings
 	 */
 	public ChildrenMapComputation(Settings settings) {
-		random = new Random(settings.getSeed());
 		this.settings = settings;
+		random = new Random(settings.getSeed());
 	}
 
 	/**
@@ -56,7 +56,10 @@ public class ChildrenMapComputation {
 	 * @param polygon          the polygon to fit the map into
 	 */
 	public <T> OpenList run(T node, Function<T, Collection<T>> childrenFunction, Function<T, Double> areaFunction, PolygonSimple polygon) {
-		if (childrenFunction.apply(node) == null || !childrenFunction.apply(node).iterator().hasNext())
+		if (childrenFunction.apply(node) == null)
+			return null;
+		var numberChildren = childrenFunction.apply(node).size();
+		if (numberChildren == 0)
 			return null;
 
 		// this is important:
@@ -64,7 +67,6 @@ public class ChildrenMapComputation {
 
 		var voronoiCore = new VoronoiCore();
 		voronoiCore.setSettings(settings);
-
 		voronoiCore.setClipPolygon(polygon);
 
 		// add each child as a site
@@ -73,7 +75,10 @@ public class ChildrenMapComputation {
 		for (var child : childrenFunction.apply(node)) {
 			var point = polygon.getRelativePosition(polygon.getRandomInnerPoint(random));
 			var site = new Site(point.getX(), point.getY());
-			site.setPercentage(areaFunction.apply(child) / totalArea);
+			if (totalArea == 0)
+				site.setPercentage(1.0 / numberChildren);
+			else
+				site.setPercentage(areaFunction.apply(child) / totalArea);
 			site.setData(child);
 			voronoiCore.addSite(site);
 		}

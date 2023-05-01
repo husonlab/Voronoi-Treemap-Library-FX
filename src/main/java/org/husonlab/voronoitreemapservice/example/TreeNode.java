@@ -28,6 +28,7 @@ import java.util.Map;
  */
 public class TreeNode {
 	private final ArrayList<TreeNode> children = new ArrayList<>();
+	private TreeNode parent;
 	private final String name;
 
 	public TreeNode(String name) {
@@ -42,7 +43,6 @@ public class TreeNode {
 		return name;
 	}
 
-
 	public double getWeight() {
 		if (getChildren().size() == 0)
 			return 1.0;
@@ -50,9 +50,31 @@ public class TreeNode {
 			return 0;
 	}
 
+	public boolean isBelow(TreeNode node) {
+		var v = this;
+		while (v != null) {
+			if (v == node)
+				return true;
+			v = v.parent;
+		}
+		return false;
+	}
+
+	public boolean isBelow(String name) {
+		var v = this;
+		while (v != null) {
+			if (v.getName().equals(name))
+				return true;
+			v = v.parent;
+		}
+		return false;
+	}
+
 	public static void createLink(Map<String, TreeNode> nameNodeMap, String childName, String parentName) {
 		var parent = nameNodeMap.computeIfAbsent(parentName, TreeNode::new);
 		var child = nameNodeMap.computeIfAbsent(childName, TreeNode::new);
+
+		child.parent = parent;
 
 		if (!parent.getChildren().contains(child))
 			parent.getChildren().add(child);
