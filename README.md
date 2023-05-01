@@ -2,7 +2,7 @@ Java Voronoi Treemap Library - fork
 =====================
 
 This project was forked
-from "https://github.com/ArlindNocaj/Voronoi-Treemap-Library/tree/master/src/kn/uni/voronoitreemap"
+from "https://github.com/ArlindNocaj/Voronoi-Treemap-Library"
 
 The original project
 *JVoroTreemap* is a fast standalone java library which computes Voronoi treemaps.
