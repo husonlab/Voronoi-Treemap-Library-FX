@@ -521,8 +521,10 @@ public class VoronoiCore {
 
 		transformBackFromZero();
 
-		System.err.println("Iteration: " + currentIteration + "\t AreaError: \t" + currentAreaError);
-		System.err.println("Iteration: " + currentIteration + "\t MaxError: \t" + currentErrorMax);
+		if (false) {
+			System.err.println("Iteration: " + currentIteration + "\t AreaError: \t" + currentAreaError);
+			System.err.println("Iteration: " + currentIteration + "\t MaxError: \t" + currentErrorMax);
+		}
 
 		// now its finished so give the cells a hint
 		for (Site site : sites) {
