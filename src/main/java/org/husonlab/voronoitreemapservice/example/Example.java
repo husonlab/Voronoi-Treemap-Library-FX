@@ -28,7 +28,6 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
 import kn.uni.voronoitreemap.j2d.PolygonSimple;
@@ -36,6 +35,7 @@ import org.husonlab.voronoitreemapservice.PolygonUtilities;
 import org.husonlab.voronoitreemapservice.Settings;
 import org.husonlab.voronoitreemapservice.VoronoiTreeMapService;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -46,18 +46,12 @@ public class Example extends Application {
 
 	@Override
 	public void start(Stage stage) {
-		var circle = new Circle(350);
-		circle.setFill(Color.TRANSPARENT);
-		circle.setStroke(Color.LIGHTGRAY);
-		circle.setStrokeWidth(4);
-
 		var vbox = new VBox();
 		vbox.setStyle("-fx-spacing: 10;");
 		var borderPane = new BorderPane();
 		borderPane.setStyle("-fx-padding: 10 10 10 10;");
 		borderPane.setRight(vbox);
 
-		var cancel = new ToggleButton("Cancel");
 		//cancel.setSelected(true);
 		var scene = new Scene(borderPane, 900, 900);
 
@@ -75,73 +69,28 @@ public class Example extends Application {
 		borderPane.setCenter(scrollPane);
 
 		var rootNode = setupTree();
-		var rootPolygon = PolygonUtilities.simpleNGon(350, 48);
+		var rootPolygon = PolygonUtilities.simpleNGon(350, 7);
 
 		var backgroundPolygon = PolygonUtilities.polygon(rootPolygon);
-		backgroundPolygon.setFill(Color.TRANSPARENT);
+		backgroundPolygon.setFill(Color.WHITE);
 		backgroundPolygon.setStroke(Color.LIGHTGRAY);
 		outerGroup.getChildren().add(backgroundPolygon);
 
+		var levelGroupMap = new HashMap<Integer, Group>();
+		var labelGroupMap = new HashMap<Integer, Group>();
 		var levelsGroup = new Group();
 		var labelsGroup = new Group();
 		outerGroup.getChildren().addAll(levelsGroup, labelsGroup);
 
 		var voronoiTreeMapService = new VoronoiTreeMapService<TreeNode>(new Settings(16, 666, 0.98));
 
-		BiConsumer<TreeNode, PolygonSimple> resultConsumer = (v, p) -> {
-			var level = p.getLevel();
-			while (level >= levelsGroup.getChildren().size()) {
-				levelsGroup.getChildren().add(new Group());
-				labelsGroup.getChildren().add(new Group());
-			}
-			var polygon = PolygonUtilities.polygon(p);
-			if (v.isBelow("Archaea"))
-				polygon.setFill(Color.web("#DF5C24").deriveColor(1, 1, 1, 0.1));
-			else if (v.isBelow("Bacteria"))
-				polygon.setFill(Color.web("#265DAB").deriveColor(1, 1, 1, 0.1));
-			else
-				polygon.setFill(Color.web("#059748").deriveColor(1, 1, 1, 0.1));
-			polygon.setStroke(Color.DARKGRAY);
-
-			var label = new Label(v.getName());
-			label.setFont(layerToFont(level));
-			var center = PolygonUtilities.computeCenter(polygon);
-			label.setAlignment(Pos.CENTER);
-			label.translateXProperty().bind(polygon.translateXProperty());
-			label.translateYProperty().bind(polygon.translateYProperty());
-			((Group) levelsGroup.getChildren().get(level)).getChildren().add(polygon);
-			((Group) labelsGroup.getChildren().get(level)).getChildren().add(label);
-			label.widthProperty().addListener((a, o, n) -> {
-				if (o.doubleValue() == 0 && n.doubleValue() > 0) {
-					label.setLayoutX(center.getX() - 0.5 * label.getWidth());
-					label.setLayoutY(center.getY() - 0.5 * label.getHeight());
-				}
-			});
-		};
-
-		voronoiTreeMapService.setTask(rootNode, TreeNode::getChildren, TreeNode::getWeight, rootPolygon, resultConsumer);
-
-		cancel.selectedProperty().addListener((v, o, n) -> {
+		var cancelButton = new ToggleButton("Cancel");
+		borderPane.setBottom(cancelButton);
+		cancelButton.selectedProperty().addListener((v, o, n) -> {
 			if (n)
 				voronoiTreeMapService.cancel();
 		});
-		cancel.disableProperty().bind(cancel.selectedProperty());
-		cancel.visibleProperty().bind(voronoiTreeMapService.runningProperty());
-
-		voronoiTreeMapService.runningProperty().addListener((v, o, n) -> {
-			cancel.setGraphic(n ? new ProgressIndicator() : null);
-		});
-		voronoiTreeMapService.setOnSucceeded(e -> {
-			for (var i = 0; i < levelsGroup.getChildren().size(); i++) {
-				var showLevel = new CheckBox("Show level " + i);
-				showLevel.selectedProperty().bindBidirectional(levelsGroup.getChildren().get(i).visibleProperty());
-				vbox.getChildren().add(showLevel);
-				var showLabels = new CheckBox("Show labels " + i);
-				showLabels.selectedProperty().bindBidirectional(labelsGroup.getChildren().get(i).visibleProperty());
-				vbox.getChildren().add(showLabels);
-			}
-		});
-		voronoiTreeMapService.start();
+		cancelButton.disableProperty().bind(cancelButton.selectedProperty());
 
 		outerGroup.setOnScroll(e -> {
 			if (!voronoiTreeMapService.isRunning()) {
@@ -166,7 +115,59 @@ public class Example extends Application {
 			}
 		});
 
+		voronoiTreeMapService.runningProperty().addListener((v, o, n) -> {
+			cancelButton.setVisible(n);
+			cancelButton.setGraphic(n ? new ProgressIndicator() : null);
+		});
 
+		BiConsumer<TreeNode, PolygonSimple> resultConsumer = (v, p) -> {
+			var level = p.getLevel();
+			while (level >= levelsGroup.getChildren().size()) {
+				var newLevelGroup = new Group();
+				levelGroupMap.put(levelsGroup.getChildren().size(), newLevelGroup);
+				levelsGroup.getChildren().add(0, newLevelGroup);
+				var newLabelGroup = new Group();
+				labelGroupMap.put(labelsGroup.getChildren().size(), newLabelGroup);
+				labelsGroup.getChildren().add(newLabelGroup);
+			}
+			var polygon = PolygonUtilities.polygon(p);
+			if (v.isBelow("Archaea"))
+				polygon.setFill(Color.web("#DF5C24").deriveColor(1, 1, 1, 0.1));
+			else if (v.isBelow("Bacteria"))
+				polygon.setFill(Color.web("#265DAB").deriveColor(1, 1, 1, 0.1));
+			else
+				polygon.setFill(Color.web("#059748").deriveColor(1, 1, 1, 0.1));
+			polygon.setStroke(Color.DARKGRAY);
+
+			var label = new Label(v.getName());
+			label.setFont(layerToFont(level));
+			var center = PolygonUtilities.computeCenter(polygon);
+			label.setAlignment(Pos.CENTER);
+			label.translateXProperty().bind(polygon.translateXProperty());
+			label.translateYProperty().bind(polygon.translateYProperty());
+			levelGroupMap.get(level).getChildren().add(polygon);
+			labelGroupMap.get(level).getChildren().add(label);
+			label.widthProperty().addListener((a, o, n) -> {
+				if (o.doubleValue() == 0 && n.doubleValue() > 0) {
+					label.setLayoutX(center.getX() - 0.5 * label.getWidth());
+					label.setLayoutY(center.getY() - 0.5 * label.getHeight());
+				}
+			});
+		};
+
+		voronoiTreeMapService.setTask(rootNode, TreeNode::getChildren, TreeNode::getWeight, rootPolygon, resultConsumer);
+
+		voronoiTreeMapService.setOnSucceeded(e -> {
+			for (var i = 0; i < levelsGroup.getChildren().size(); i++) {
+				var showLevel = new CheckBox("Show level " + i);
+				showLevel.selectedProperty().bindBidirectional(levelsGroup.getChildren().get(i).visibleProperty());
+				vbox.getChildren().add(showLevel);
+				var showLabels = new CheckBox("Show labels " + i);
+				showLabels.selectedProperty().bindBidirectional(labelsGroup.getChildren().get(i).visibleProperty());
+				vbox.getChildren().add(showLabels);
+			}
+		});
+		voronoiTreeMapService.start();
 	}
 
 	private TreeNode setupTree() {

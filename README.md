@@ -25,8 +25,7 @@ Citation
 
 This work is based on the publication below, please cite on usage:
 
-* Arlind Nocaj, Ulrik Brandes, "Computing Voronoi Treemaps: Faster, Simpler, and Resolution-independent", Computer
-  Graphics Forum, vol. 31, no. 3, June 2012, pp. 855-864
+* [Arlind Nocaj, Ulrik Brandes, "Computing Voronoi Treemaps: Faster, Simpler, and Resolution-independent", Computer Graphics Forum, vol. 31, no. 3, June 2012, pp. 855-864](https://kops.uni-konstanz.de/server/api/core/bitstreams/028bd5f3-6a68-429c-b805-45daf645f9d9/content)
 
 Fork
 ------------------------
